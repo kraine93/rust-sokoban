@@ -6,12 +6,15 @@ use ggez::{
     nalgebra as na, Context, GameResult,
 };
 use specs::{
-    join::Join, Builder, Component, ReadStorage, RunNow, System, VecStorage, World, WorldExt,
-    Write, WriteStorage,
+    join::Join, world::Index, Builder, Component, Entities, NullStorage, ReadStorage, RunNow,
+    System, VecStorage, World, WorldExt, Write, WriteStorage,
 };
+use std::collections::HashMap;
 use std::path;
 
 const TILE_WIDTH: f32 = 32.0;
+const MAP_WIDTH: u8 = 8;
+const MAP_HEIGHT: u8 = 9;
 
 #[derive(Debug, Component, Clone, Copy)]
 #[storage(VecStorage)]
@@ -26,6 +29,14 @@ pub struct Position {
 pub struct Renderable {
     path: String,
 }
+
+#[derive(Component, Default)]
+#[storage(NullStorage)]
+pub struct Movable;
+
+#[derive(Component, Default)]
+#[storage(NullStorage)]
+pub struct Immovable;
 
 #[derive(Component)]
 #[storage(VecStorage)]
@@ -46,6 +57,8 @@ pub struct BoxSpot {}
 pub fn register_components(world: &mut World) {
     world.register::<Position>();
     world.register::<Renderable>();
+    world.register::<Movable>();
+    world.register::<Immovable>();
     world.register::<Wall>();
     world.register::<Player>();
     world.register::<Box>();
@@ -106,6 +119,7 @@ pub fn create_wall(world: &mut World, position: Position) {
             path: "/images/wall.png".to_string(),
         })
         .with(Wall {})
+        .with(Immovable)
         .build();
 }
 
@@ -127,6 +141,7 @@ pub fn create_box(world: &mut World, position: Position) {
             path: "/images/box.png".to_string(),
         })
         .with(Box {})
+        .with(Movable)
         .build();
 }
 
@@ -149,6 +164,7 @@ pub fn create_player(world: &mut World, position: Position) {
             path: "/images/player.png".to_string(),
         })
         .with(Player {})
+        .with(Movable)
         .build();
 }
 
@@ -190,15 +206,70 @@ pub struct InputSystem {}
 impl<'a> System<'a> for InputSystem {
     type SystemData = (
         Write<'a, InputQueue>,
+        Entities<'a>,
         WriteStorage<'a, Position>,
         ReadStorage<'a, Player>,
+        ReadStorage<'a, Movable>,
+        ReadStorage<'a, Immovable>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut input_queue, mut positions, players) = data;
+        let (mut input_queue, entities, mut positions, players, movables, immovables) = data;
 
-        for (position, _player) in (&mut positions, &players).join() {
+        let mut to_move = Vec::new();
+
+        for (position, _player) in (&positions, &players).join() {
             if let Some(key) = input_queue.keys_pressed.pop() {
+                // Movables
+                let mov: HashMap<(u8, u8), Index> = (&entities, &movables, &positions)
+                    .join()
+                    .map(|t| ((t.2.x, t.2.y), t.0.id()))
+                    .collect();
+
+                // Immovables
+                let immov: HashMap<(u8, u8), Index> = (&entities, &immovables, &positions)
+                    .join()
+                    .map(|t| ((t.2.x, t.2.y), t.0.id()))
+                    .collect();
+
+                // Iterate over each element in the direction until the end of the map
+                let (start, end, is_x) = match key {
+                    KeyCode::Up => (position.y, 0, false),
+                    KeyCode::Down => (position.y, MAP_HEIGHT, false),
+                    KeyCode::Left => (position.x, 0, true),
+                    KeyCode::Right => (position.x, MAP_WIDTH, true),
+                    _ => continue,
+                };
+
+                let range = if start < end {
+                    (start..=end).collect::<Vec<u8>>()
+                } else {
+                    (end..=start).rev().collect::<Vec<u8>>()
+                };
+
+                for x_or_y in range {
+                    let pos = if is_x {
+                        (x_or_y, position.y)
+                    } else {
+                        (position.x, x_or_y)
+                    };
+
+                    // Try to find a movable object at the position, and if so, add it to the move list
+                    match mov.get(&pos) {
+                        Some(id) => to_move.push((key, id.clone())),
+                        // Try to find an immovable object at the location, and if so, clear all movements
+                        None => match immov.get(&pos) {
+                            Some(_id) => to_move.clear(),
+                            None => break,
+                        },
+                    }
+                }
+            }
+        }
+
+        for (key, id) in to_move {
+            let position = positions.get_mut(entities.entity(id));
+            if let Some(position) = position {
                 match key {
                     KeyCode::Up => position.y -= 1,
                     KeyCode::Down => position.y += 1,
