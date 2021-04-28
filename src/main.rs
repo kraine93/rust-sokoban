@@ -30,6 +30,11 @@ impl event::EventHandler for Game {
             is.run_now(&self.world);
         }
 
+        {
+            let mut gs = GameStateSystem {};
+            gs.run_now(&self.world);
+        }
+
         Ok(())
     }
 
