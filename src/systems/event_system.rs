@@ -26,7 +26,6 @@ impl<'a> System<'a> for EventSystem {
 
         // Loop all the events in the queue
         for event in event_queue.events.drain(..) {
-            println!("New event: {:?}", event);
             match event {
                 Event::PlayerHitObstacle => {
                     audio_store.play("wall");
