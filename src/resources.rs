@@ -1,3 +1,5 @@
+use crate::audio::AudioStore;
+use crate::events::Event;
 use ggez::input::keyboard::KeyCode;
 use specs::World;
 use std::time::Duration;
@@ -6,6 +8,11 @@ use std::{fmt, fmt::Display};
 #[derive(Default)]
 pub struct InputQueue {
     pub keys_pressed: Vec<KeyCode>,
+}
+
+#[derive(Default)]
+pub struct EventQueue {
+    pub events: Vec<Event>,
 }
 
 #[derive(Default)]
@@ -42,6 +49,8 @@ pub struct Gameplay {
 
 pub fn register_resources(world: &mut World) {
     world.insert(InputQueue::default());
+    world.insert(EventQueue::default());
     world.insert(Gameplay::default());
     world.insert(Time::default());
+    world.insert(AudioStore::default());
 }

@@ -7,9 +7,11 @@ use specs::RunNow;
 use specs::{World, WorldExt};
 use std::path;
 
+mod audio;
 mod components;
 mod constants;
 mod entities;
+mod events;
 mod map;
 mod resources;
 mod systems;
@@ -28,6 +30,11 @@ impl event::EventHandler for Game {
         {
             let mut is = InputSystem {};
             is.run_now(&self.world);
+        }
+
+        {
+            let mut es = EventSystem {};
+            es.run_now(&self.world);
         }
 
         {
@@ -92,6 +99,8 @@ fn main() -> GameResult {
         .add_resource_path(path::PathBuf::from("./resources"));
 
     let (context, event_loop) = &mut context_builder.build()?;
+
+    audio::initialize_sounds(&mut world, context);
 
     let game = &mut Game { world };
 
