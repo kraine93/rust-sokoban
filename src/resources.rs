@@ -1,10 +1,16 @@
 use ggez::input::keyboard::KeyCode;
 use specs::World;
+use std::time::Duration;
 use std::{fmt, fmt::Display};
 
 #[derive(Default)]
 pub struct InputQueue {
     pub keys_pressed: Vec<KeyCode>,
+}
+
+#[derive(Default)]
+pub struct Time {
+    pub delta: Duration,
 }
 
 pub enum GameplayState {
@@ -37,4 +43,5 @@ pub struct Gameplay {
 pub fn register_resources(world: &mut World) {
     world.insert(InputQueue::default());
     world.insert(Gameplay::default());
+    world.insert(Time::default());
 }

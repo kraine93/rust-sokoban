@@ -1,12 +1,13 @@
 use crate::components::*;
 use crate::constants::TILE_WIDTH;
-use crate::resources::Gameplay;
+use crate::resources::{Gameplay, Time};
 use ggez::{
     graphics,
     graphics::{Color, DrawParam, Image},
     nalgebra as na, Context,
 };
 use specs::{join::Join, Read, ReadStorage, System};
+use std::time::Duration;
 
 pub struct RenderingSystem<'a> {
     pub context: &'a mut Context,
@@ -15,12 +16,13 @@ pub struct RenderingSystem<'a> {
 impl<'a> System<'a> for RenderingSystem<'a> {
     type SystemData = (
         Read<'a, Gameplay>,
+        Read<'a, Time>,
         ReadStorage<'a, Position>,
         ReadStorage<'a, Renderable>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (gameplay_state, positions, renderables) = data;
+        let (gameplay_state, time, positions, renderables) = data;
 
         // Clear the screen (set the background colour)
         graphics::clear(self.context, Color::new(0.95, 0.95, 0.95, 1.0));
@@ -31,7 +33,7 @@ impl<'a> System<'a> for RenderingSystem<'a> {
 
         // Iterate through renderables and draw the images in the corrext position
         for (position, renderable) in rendering_data.iter() {
-            let image = Image::new(self.context, &renderable.path).expect("Expected image");
+            let image = self.get_image(renderable, time.delta);
 
             let calc_pos = |num: f32| num * TILE_WIDTH;
             let x = calc_pos(position.x as f32);
@@ -63,5 +65,16 @@ impl RenderingSystem<'_> {
             graphics::FilterMode::Linear,
         )
         .expect("Expected draw text");
+    }
+
+    pub fn get_image(&mut self, renderable: &Renderable, delta: Duration) -> Image {
+        let path_index = match renderable.kind() {
+            RenderableType::Static => 0,
+            RenderableType::Animated => ((delta.as_millis() % 1000) / 250) as usize,
+        };
+
+        let image_path = renderable.path(path_index);
+
+        Image::new(self.context, image_path).expect("Expected image")
     }
 }

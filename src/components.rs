@@ -18,6 +18,11 @@ impl Display for BoxColour {
     }
 }
 
+pub enum RenderableType {
+    Static,
+    Animated,
+}
+
 #[derive(Debug, Component, Clone, Copy)]
 #[storage(VecStorage)]
 pub struct Position {
@@ -29,7 +34,29 @@ pub struct Position {
 #[derive(Component)]
 #[storage(VecStorage)]
 pub struct Renderable {
-    pub path: String,
+    paths: Vec<String>,
+}
+
+impl Renderable {
+    pub fn new_static(path: String) -> Self {
+        Renderable { paths: vec![path] }
+    }
+
+    pub fn new_animated(paths: Vec<String>) -> Self {
+        Renderable { paths }
+    }
+
+    pub fn kind(&self) -> RenderableType {
+        match self.paths.len() {
+            0 => panic!("Invalid renderable"),
+            1 => RenderableType::Static,
+            _ => RenderableType::Animated,
+        }
+    }
+
+    pub fn path(&self, path_index: usize) -> &String {
+        &self.paths[path_index % self.paths.len()]
+    }
 }
 
 #[derive(Component, Default)]
