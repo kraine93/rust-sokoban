@@ -23,8 +23,12 @@ impl<'a> System<'a> for GameStateSystem {
             .collect();
 
         // Check all box spots to see if there is a box at the same position
-        for (_box_spot, position) in (&box_spots, &positions).join() {
-            if !box_positions.contains_key(&(position.x, position.y)) {
+        for (box_spot, position) in (&box_spots, &positions).join() {
+            if let Some(the_box) = box_positions.get(&(position.x, position.y)) {
+                if the_box.colour != box_spot.colour {
+                    return;
+                };
+            } else {
                 gameplay_state.state = GameplayState::Playing;
                 return;
             }
